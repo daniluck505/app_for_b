@@ -2,7 +2,7 @@ import pywebio
 from pywebio import input
 from pywebio import output
 import pandas as pd
-import asyncio
+import asyncio            # https://docs.python.org/3/library/asyncio.html
 from pywebio.session import defer_call, info as session_info, run_async, run_js
 
 '''
@@ -12,8 +12,8 @@ from pywebio.session import defer_call, info as session_info, run_async, run_js
 - вывод графика статисктики работы 
 - чат - как это? нужно встроить 
 - настроить гит 
-- 
-- 
+- токен для регистрации 
+- надо узнать как делать обновление не всей страницы а отдельных элементов 
 '''
 
 
@@ -28,12 +28,19 @@ print(df_printer)
 
 # -------------------Функции----------------
 
+
 async def saver_df_person(df_data, name, exel=False):
     """Функция сохранения датафрейма df_person в файл"""
     if exel:
         df_data[['nickname', 'name', 'surname', 'parol', 'status', 'work_time']].to_excel(name + 'xlsx' + '.xlsx')
     else:
         df_data[['nickname', 'name', 'surname', 'parol', 'status', 'work_time']].to_csv(name + '.csv')
+
+
+async def refresh_person():
+    """Функция обновления датафрейма df_person"""
+    global df_person
+    df_person = pd.read_csv('df_person.csv')
 
 
 async def saver_df_printer(df_data, name, exel=False):
@@ -43,6 +50,12 @@ async def saver_df_printer(df_data, name, exel=False):
             name + 'xlsx' + '.xlsx')
     else:
         df_data[['number', 'name', 'profit', 'work_time', 'description', 'chat', 'status']].to_csv(name + '.csv')
+
+
+async def refresh_printer():
+    """Функция обновления датафрейма df_printer"""
+    global df_printer
+    df_printer = pd.read_csv('df_printer.csv')
 
 
 async def append_df_person():
@@ -78,7 +91,7 @@ async def append_df_person():
                 new_row = {'nickname': data_regist['nickname'],
                            'name': data_regist['name'],
                            'surname': data_regist['surname'],
-                           'parol': data_regist['password_1'],
+                           'parol': str(data_regist['password_1']),
                            'status': data_regist['status'],
                            'work_time': 0}
                 df_person = df_person.append(new_row, ignore_index=True)
@@ -133,15 +146,12 @@ async def aoutor():
                 await append_df_person()
                 autoriz = False
 
-# временная
-async def work_with_df_printer():
-    global df_printer
-    output.put_markdown('### Меню заказов')
-    printer_menu = input.select('Выберите пункт', ['Новый', 'Удалить', 'Изменить', 'Обновить'])
 
-    if printer_menu == 'Новый':
-        output.clear()
-        data_new_printer = input.input_group("Новый заказ", [
+async def work_with_df_printer(action):
+    global df_printer
+
+    if action == 'Новый':
+        data_new_printer = await input.input_group("Новый заказ", [
             await input.input('Введите имя заказа', name='name'),
             await input.input('Введите номер заказа', name='number'),
             await input.input('Введите описание заказа', name='description'),
@@ -155,78 +165,118 @@ async def work_with_df_printer():
                    'status': 'Ожидание'}
         df_printer = df_printer.append(new_row, ignore_index=True)
         await saver_df_printer(df_printer, 'df_printer')
-    # elif printer_menu == 'Удалить':
-    # elif printer_menu == 'Удалить':
-    # elif printer_menu == 'Обновить':
+    elif action == 'Удалить':
+        pass
+    elif action == 'Изменить':
+        pass
+    elif action == 'Обновить':
+        pass
 
 
-async def main_body(status='Руководитель'):
-    global profile
+async def main_body():
     global df_printer
+    global profile
+    # записываем информацию о работнике
     nickname_profile = list(profile['nickname'])[0]
     name_profile = list(profile['name'])[0]
     surname_profile = list(profile['surname'])[0]
     status_profile = list(profile['status'])[0]
 
-    output.clear()
-    with output.put_collapse('Меню'):
-        output.put_row([
-            output.put_column([
-                output.put_table([
-                    ['Профиль', ' '],
-                    ['nickname', nickname_profile],
-                    ['Имя', name_profile],
-                    ['Фамилия', surname_profile],
-                    ['Должность', status_profile],
-                ])
-
-            ]), None,
-            output.put_column([
-                output.put_button("Обновить страницу",
-                                  onclick=lambda: run_js('window.location.reload()')), None,
-                output.put_button("Новый заказ", onclick=lambda: output.toast("Clicked")), None,
-                output.put_button("Удалить заказ", onclick=lambda: output.toast("Clicked")), None,
-            ]), None,
-            output.put_column([
-                output.put_button("Изменить заказ", onclick=lambda: output.toast("Clicked")), None,
-                output.put_button("Изменить профиль", onclick=lambda: output.toast("Clicked")), None,
-                output.put_button("Настройки", onclick=lambda: output.toast("Clicked")), None,
-
-            ])
-        ])
-
-    for i in df_printer.index:
-        printer_name = df_printer.iloc[i]['name']
-        description = df_printer.iloc[i]['description']
-        number = df_printer.iloc[i]['number']
-        status = df_printer.iloc[i]['status']
-        work_time = df_printer.iloc[i]['work_time']
-
-        with output.put_collapse(printer_name):
-            output.put_text(description)
-
-            output.put_row([
-                output.put_code('Чат'), None,
-                output.put_column([
-                    output.put_code('Номер: ' + str(number)),
-                    output.put_code('Cтатус: ' + str(status)),
-                    output.put_code('Общее время работы: ' + str(work_time)),
-                    output.put_row([
-                        output.put_button('Взять', onclick=output.put_text('lol')), None,
-                        output.put_button('Done', onclick=output.put_text('lol')),
+    refresh = 0
+    while True:
+        # спим 1 секунду
+        await asyncio.sleep(1)
+        # проверяем новые заказы
+        await refresh_printer()
+        if refresh != df_printer.shape[0]:
+            print('Список принтеров изменен')
+            output.clear()
+            with output.put_collapse('Меню'):
+                output.put_row([
+                    output.put_column([
+                        output.put_table([
+                            ['Профиль', ' '],
+                            ['nickname', nickname_profile],
+                            ['Имя', name_profile],
+                            ['Фамилия', surname_profile],
+                            ['Должность', status_profile],
+                        ])
+                    ]),
+                    output.put_column([
+                        output.put_button("Новый заказ",
+                                          onclick=lambda: work_with_df_printer('Новый'),
+                                          color='primary',
+                                          outline=True),
+                        output.put_button("Изменить профиль",
+                                          onclick=lambda: output.toast("Clicked"),
+                                          color='primary',
+                                          outline=True),
+                        output.put_button("Настройки",
+                                          onclick=lambda: output.toast("Clicked"),
+                                          color='primary',
+                                          outline=True),
                     ])
                 ])
-            ])
+            for i in df_printer.index:
+                printer_name = df_printer.iloc[i]['name']
+                description = df_printer.iloc[i]['description']
+                number = df_printer.iloc[i]['number']
+                status = df_printer.iloc[i]['status']
+                work_time = df_printer.iloc[i]['work_time']
+
+                with output.put_collapse(printer_name):
+                    output.put_text(description)
+
+                    output.put_row([
+                        output.put_column([
+                            output.put_code('Номер: \n' + str(number)),
+                            output.put_code('Cтатус: \n' + str(status)),
+                            output.put_code('Общее время работы: \n' + str(work_time)),
+                        ]),None,
+                        output.put_column([
+                            output.put_button("Взять",
+                                              onclick=lambda: work_with_df_printer('primary'),
+                                              color='primary',
+                                              outline=True,
+                                              small=True), None,
+                            output.put_button("Готово",
+                                              onclick=lambda: work_with_df_printer('success'),
+                                              color='success',
+                                              outline=True,
+                                              small=True), None,
+                            output.put_button("Изменить",
+                                              onclick=lambda: work_with_df_printer('primary'),
+                                              color='primary',
+                                              outline=True,
+                                              small=True), None,
+                            output.put_button("Архивировать",
+                                              onclick=lambda: work_with_df_printer('primary'),
+                                              color='primary',
+                                              outline=True,
+                                              small=True), None,
+                            output.put_button("Удалить",
+                                              onclick=lambda: work_with_df_printer('danger'),
+                                              color='danger',
+                                              outline=True,
+                                              small=True), None,
+                        ]),
+                    ])
+                    output.put_code('Чат'), None,
+
+        # обновляем количество заказов
+        refresh = df_printer.shape[0]
 
 
 async def main():
     try:
         profile = None
         await aoutor()
+        output.clear()
         await main_body()
     except:
         output.put_markdown('# Произошла неизвестная ошибка, попробуйте перезагрузить сайт')
         # журанл ошибок
+
 
 
 if __name__ == '__main__':

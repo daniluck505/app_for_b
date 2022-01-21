@@ -138,6 +138,37 @@ def work_with_df_printer():
     # elif printer_menu == 'Обновить':
 
 
+def work_with_df_printer_b(action):
+    global df_printer
+    if action == 'Новый':
+
+        data_new_printer = input.input_group("Новый заказ", [
+            input.input('Введите имя заказа', name='name'),
+            input.input('Введите номер заказа', name='number'),
+            input.input('Введите описание заказа', name='description'),
+
+        ])
+        new_row = {'name': data_new_printer['name'],
+                   'number': data_new_printer['number'],
+                   'profit': 0,
+                   'work_time': 0,
+                   'description': data_new_printer['description'],
+                   'status': 'Ожидание'}
+        df_printer = df_printer.append(new_row, ignore_index=True)
+        saver_df_printer(df_printer, 'df_printer')
+
+    elif action == 'Удалить':
+        pass
+    elif action == 'Изменить':
+        pass
+    elif action == 'Обновить':
+        pass
+
+    # elif printer_menu == 'Удалить':
+    # elif printer_menu == 'Удалить':
+    # elif printer_menu == 'Обновить':
+
+
 def main_body(status='Руководитель'):
     global df_printer
     with output.put_collapse('Меню'):
@@ -182,24 +213,13 @@ def main_body(status='Руководитель'):
 
 def main():
     try:
-        main_body()
-
+        while True:
+            work_with_df_printer_b('Новый')
     except:
         output.put_markdown('# Произошла неизвестная ошибка, попробуйте перезагрузить сайт')
-
-
-# -------------------Страница авторизации и регистрации----------------
-aoutor()
-saver_df_person(df_person, 'df_person')
-output.clear()
-# --------------------Основная страница---------------------------------
-
-main()
-
-save_printer = df_printer.shape[0]
 
 
 
 
 if __name__ == '__main__':
-    pywebio.start_server(main, debug=True, port=8080, cdn=False)
+    pywebio.start_server(main, debug=True, port=8090, cdn=False)

@@ -33,5 +33,6 @@ def reset_df_printer():
     df_printer = pd.DataFrame(columns=['name', 'profit', 'work_time', 'description', 'chat'])
     saver_df_printer(df_printer, 'df_printer')
 
+reset_df_person()
 
 print(df_person)
