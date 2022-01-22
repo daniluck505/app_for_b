@@ -211,14 +211,11 @@ def main_body(status='Руководитель'):
             ])
 
 
+def btn_click(btn_val):
+    output.put_text("You click %s button" % btn_val)
+
 def main():
-    try:
-        while True:
-            work_with_df_printer_b('Новый')
-    except:
-        output.put_markdown('# Произошла неизвестная ошибка, попробуйте перезагрузить сайт')
-
-
+    pywebio.output.put_button('aaaa',onclick=btn_click, position=-1)
 
 
 if __name__ == '__main__':

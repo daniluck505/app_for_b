@@ -30,9 +30,9 @@ def reset_df_person():
 
 
 def reset_df_printer():
-    df_printer = pd.DataFrame(columns=['name', 'profit', 'work_time', 'description', 'chat'])
+    df_printer = pd.DataFrame(columns=['number', 'name', 'profit', 'work_time', 'description', 'chat', 'status'])
     saver_df_printer(df_printer, 'df_printer')
 
-reset_df_person()
 
 print(df_person)
+print(df_printer)
