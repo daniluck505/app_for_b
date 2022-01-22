@@ -3,6 +3,8 @@ from pywebio import input
 from pywebio import output
 import pandas as pd
 import asyncio  # https://docs.python.org/3/library/asyncio.html
+from functools import partial
+
 from pywebio.session import defer_call, info as session_info, run_async, run_js
 
 '''
@@ -144,9 +146,9 @@ async def aoutor():
                 autoriz = False
 
 
-async def work_with_df_printer(action, name=False):
+async def work_with_df_printer(action, id=False):
     global df_printer
-
+    # output.toast("You click %s button with id: %s" % (action, id))
     if action == 'Новый':
         data_new_printer = await input.input_group("Новый заказ", [
             await input.input('Введите имя заказа', name='name'),
@@ -164,9 +166,9 @@ async def work_with_df_printer(action, name=False):
             df_printer = df_printer.append(new_row, ignore_index=True)
             await saver_df_printer(df_printer, 'df_printer')
     elif action == 'Удалить':
-        ind_drop = list(df_printer[df_printer['name'] == name].index)
-        print(name)
-        df_printer = df_printer.drop(ind_drop, axis=0)
+
+        print(action, id)
+        df_printer = df_printer.drop(id, axis=0)
         print(df_printer.shape[0])
         await saver_df_printer(df_printer, 'df_printer')
     elif action == 'Изменить':
@@ -262,28 +264,21 @@ async def main_body():
                             output.put_code('Общее время работы: \n' + str(work_time)),
                         ]), None,
                         output.put_column([
-                            output.put_button("Взять",
-                                              onclick=lambda: work_with_df_printer('primary'),
-                                              color='primary',
-                                              small=True,
-                                              ), None,
-                            output.put_button("Готово",
-                                              onclick=lambda: work_with_df_printer('success'),
-                                              color='primary',
-                                              small=True), None,
-                            output.put_button("Изменить",
-                                              onclick=lambda: work_with_df_printer('primary'),
-                                              color='primary',
-                                              small=True), None,
-                            output.put_button("Архивировать",
-                                              onclick=lambda: work_with_df_printer('primary'),
-                                              color='primary',
-                                              small=True), None,
-                            output.put_button("Удалить",
-                                              onclick=lambda: output.toast(printer_name),
-                                              color='danger',
-                                              small=True,
-                                              )
+                            output.put_buttons(['Взять'],
+                                               onclick=partial(work_with_df_printer, id=i),
+                                               small=True),
+                            output.put_buttons(['Готово'],
+                                               onclick=partial(work_with_df_printer, id=i),
+                                               small=True),
+                            output.put_buttons(['Изменить'],
+                                               onclick=partial(work_with_df_printer, id=i),
+                                               small=True),
+                            output.put_buttons(['Архивировать'],
+                                               onclick=partial(work_with_df_printer, id=i),
+                                               small=True),
+                            output.put_buttons(['Удалить'],
+                                               onclick=partial(work_with_df_printer, id=i),
+                                               small=True),
                         ]),
                     ])
                     output.put_code('Чат'), None,
@@ -306,4 +301,4 @@ async def main():
 
 
 if __name__ == '__main__':
-    pywebio.start_server(main, debug=True, port=8040, cdn=False)
+    pywebio.start_server(main, debug=True, port=8070, cdn=False)
