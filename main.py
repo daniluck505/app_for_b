@@ -56,7 +56,7 @@ async def refresh_printer():
     global df_printer
     df_printer = pd.read_csv('df_printer.csv')
 
-
+"проверка"
 async def append_df_person():
     """Функция добалвения нового пользователя"""
     global profile  # global - подгрузка переменной
