@@ -4,7 +4,8 @@ from pywebio import output
 import pandas as pd
 import asyncio  # https://docs.python.org/3/library/asyncio.html
 from functools import partial
-
+from datetime import datetime
+from time import time
 from pywebio.session import defer_call, info as session_info, run_async, run_js
 
 '''
@@ -44,6 +45,9 @@ async def refresh_person():
 
 async def saver_df_printer(df_data, name, exel=False):
     """Функция сохранения датафрейма df_printer в файл"""
+    droplist = list(df_data['name'].notna())
+    if False in droplist:
+        df_data = df_data[droplist]
     if exel:
         df_data[['number', 'name', 'profit', 'work_time', 'description', 'chat', 'status']].to_excel(
             name + 'xlsx' + '.xlsx')
@@ -56,7 +60,12 @@ async def refresh_printer():
     global df_printer
     df_printer = pd.read_csv('df_printer.csv')
 
-"проверка"
+
+async def refresher():
+    global refresh
+    refresh = 0
+
+
 async def append_df_person():
     """Функция добалвения нового пользователя"""
     global profile  # global - подгрузка переменной
@@ -119,6 +128,7 @@ async def control_person_in_df(nickname, password):
 
 async def aoutor():
     """Функция авторизации"""
+    global refresh
     global profile
     global df_person
     autoriz = True
@@ -144,17 +154,22 @@ async def aoutor():
                 output.put_markdown('## Регистрация')
                 await append_df_person()
                 autoriz = False
+    await refresher()
+
+
+async def set_input(set_value, ind, lable):
+    set_value(df_printer.iloc[ind][lable])
 
 
 async def work_with_df_printer(action, id=False):
     global df_printer
+    global refresh
     # output.toast("You click %s button with id: %s" % (action, id))
     if action == 'Новый':
         data_new_printer = await input.input_group("Новый заказ", [
             await input.input('Введите имя заказа', name='name'),
             await input.input('Введите номер заказа', name='number'),
             await input.textarea('Введите описание заказа', name='description'),
-
         ])
         new_row = {'name': data_new_printer['name'],
                    'number': data_new_printer['number'],
@@ -162,22 +177,51 @@ async def work_with_df_printer(action, id=False):
                    'work_time': 0,
                    'description': data_new_printer['description'],
                    'status': 'Ожидание'}
-        if data_new_printer['name'] != None:
+        if len(data_new_printer['name']) != 0:
             df_printer = df_printer.append(new_row, ignore_index=True)
             await saver_df_printer(df_printer, 'df_printer')
+        await refresher()
     elif action == 'Удалить':
-
-        print(action, id)
         df_printer = df_printer.drop(id, axis=0)
-        print(df_printer.shape[0])
         await saver_df_printer(df_printer, 'df_printer')
+        await refresher()
     elif action == 'Изменить':
-        pass
+        data_new_printer = await input.input_group(f"Изменить {df_printer.iloc[id]['name']}", [
+            await input.input('Имя заказа',
+                              name='name',
+                              action=('✏️', partial(set_input, ind=id, lable='name'))),
+            await input.input('Номер заказа',
+                              name='number',
+                              action=('✏️', partial(set_input, ind=id, lable='number'))),
+            await input.textarea('Описание заказа',
+                                 name='description'),
+        ])
+        if len(data_new_printer['name']) == 0:
+            data_new_printer['name'] = df_printer.iloc[id]['name']
+        if len(data_new_printer['number']) == 0:
+            data_new_printer['number'] = df_printer.iloc[id]['number']
+        if len(data_new_printer['description']) == 0:
+            data_new_printer['description'] = df_printer.iloc[id]['description']
+        new_row = {'name': data_new_printer['name'],
+                   'number': data_new_printer['number'],
+                   'profit': df_printer.iloc[id]['profit'],
+                   'work_time': df_printer.iloc[id]['work_time'],
+                   'description': data_new_printer['description'],
+                   'status': df_printer.iloc[id]['status']}
+
+        if new_row['name'] != None:
+            df_printer = df_printer.drop(index=id)
+            print(df_printer)
+            df_printer = df_printer.append(new_row, ignore_index=True)
+            print(df_printer)
+            await saver_df_printer(df_printer, 'df_printer')
+            await refresher()
     elif action == 'Обновить':
         pass
 
 
 async def main_body():
+    global refresh
     global df_printer
     global profile
     # записываем информацию о работнике
@@ -208,8 +252,7 @@ async def main_body():
                               color='primary'),
         ])
     ])
-
-    refresh = 0
+    await refresher()
     while True:
         # спим 1 секунду
         await asyncio.sleep(1)
@@ -235,17 +278,16 @@ async def main_body():
                                       color='primary'),
                     output.put_button("Изменить профиль",
                                       onclick=lambda: print('nine'),
-                                      color='primary'),
+                                      color='primary',
+                                      disabled=True),
                     output.put_button("Настройки",
                                       onclick=lambda: output.toast("Clicked"),
-                                      color='primary'),
+                                      color='primary',
+                                      disabled=True)
                 ])
             ])
 
             # вывод заказов
-            # можно использовать def
-            # можно нафти на что ссылается i в данный момент
-            # разобраться с onclick
             for i in df_printer.sort_index(ascending=False).index:
                 printer_name = df_printer.iloc[i]['name']
                 description = df_printer.iloc[i]['description']
@@ -255,7 +297,7 @@ async def main_body():
 
                 print(i)
                 with output.put_collapse(printer_name):
-                    output.put_text(description)
+                    output.put_code('Описание: \n' + str(description))
 
                     output.put_row([
                         output.put_column([
@@ -286,12 +328,12 @@ async def main_body():
         refresh = df_printer.shape[0]
 
 
+refresh = 0
+profile = None
 
-# work_with_df_printer(action='Удалить', name=printer_name)
 
 async def main():
     try:
-        profile = None
         await aoutor()
         output.clear()
         await main_body()
