@@ -7,7 +7,7 @@ from functools import partial
 from datetime import datetime
 from time import time
 from pywebio.session import defer_call, info as session_info, run_async, run_js
-
+"Pavtern branch check"
 '''
 - разобраться с кнопками в главном меню 
 - обновление страницы без повторной авторизации 
